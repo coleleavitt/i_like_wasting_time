@@ -1,7 +1,9 @@
+use chrono::Local;
 use iced::Task;
 
 use crate::message::Message;
 use crate::state::{FormState, JobTracker};
+use crate::storage;
 
 pub fn update(state: &mut JobTracker, message: Message) -> Task<Message> {
     match message {
@@ -18,6 +20,7 @@ pub fn update(state: &mut JobTracker, message: Message) -> Task<Message> {
         Message::CompanyChanged(value) => {
             if state.editing_index.is_some() {
                 state.edit_form.company = value;
+                state.has_unsaved_changes = true;  // Mark as having unsaved changes
             } else {
                 state.form.company = value;
             }
@@ -26,6 +29,7 @@ pub fn update(state: &mut JobTracker, message: Message) -> Task<Message> {
         Message::PositionChanged(value) => {
             if state.editing_index.is_some() {
                 state.edit_form.position = value;
+                state.has_unsaved_changes = true;
             } else {
                 state.form.position = value;
             }
@@ -34,6 +38,7 @@ pub fn update(state: &mut JobTracker, message: Message) -> Task<Message> {
         Message::DateChanged(value) => {
             if state.editing_index.is_some() {
                 state.edit_form.date_applied = value;
+                state.has_unsaved_changes = true;
             } else {
                 state.form.date_applied = value;
             }
@@ -42,6 +47,7 @@ pub fn update(state: &mut JobTracker, message: Message) -> Task<Message> {
         Message::NotesChanged(value) => {
             if state.editing_index.is_some() {
                 state.edit_form.notes = value;
+                state.has_unsaved_changes = true;
             } else {
                 state.form.notes = value;
             }
@@ -50,6 +56,7 @@ pub fn update(state: &mut JobTracker, message: Message) -> Task<Message> {
         Message::UrlChanged(value) => {
             if state.editing_index.is_some() {
                 state.edit_form.url = value;
+                state.has_unsaved_changes = true;
             } else {
                 state.form.url = value;
             }
@@ -58,6 +65,7 @@ pub fn update(state: &mut JobTracker, message: Message) -> Task<Message> {
         Message::StatusSelected(status) => {
             if state.editing_index.is_some() {
                 state.edit_form.status = Some(status);
+                state.has_unsaved_changes = true;
             } else {
                 state.form.status = Some(status);
             }
@@ -66,8 +74,16 @@ pub fn update(state: &mut JobTracker, message: Message) -> Task<Message> {
         Message::AddJob => {
             // Only add if required fields are filled
             if state.form.is_valid() {
-                if let Some(job) = state.form.to_job() {
+                if let Some(mut job) = state.form.to_job() {
+                    // Add timestamp
+                    let now = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+                    job.last_updated = Some(now);
+
                     state.jobs.push(job);
+                    state.has_unsaved_changes = true;  // Mark as changed after adding job
+
+                    // Save after adding a job
+                    state.save();
                 }
 
                 // Reset the form after adding
@@ -97,8 +113,16 @@ pub fn update(state: &mut JobTracker, message: Message) -> Task<Message> {
             if let Some(index) = state.editing_index {
                 if index < state.jobs.len() && state.edit_form.is_valid() {
                     // Update the job with the edited values
-                    if let Some(job) = state.edit_form.to_job() {
+                    if let Some(mut job) = state.edit_form.to_job() {
+                        // Update timestamp
+                        let now = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+                        job.last_updated = Some(now);
+
                         state.jobs[index] = job;
+                        state.has_unsaved_changes = true;  // Mark as changed after editing
+
+                        // Save after editing
+                        state.save();
                     }
                 }
 
@@ -116,7 +140,11 @@ pub fn update(state: &mut JobTracker, message: Message) -> Task<Message> {
         },
         Message::DeleteJob(index) => {
             if index < state.jobs.len() {
+                // Create backup before deletion
+                let _ = storage::backup_data();
+
                 state.jobs.remove(index);
+                state.has_unsaved_changes = true;  // Mark as changed after deletion
 
                 // If we were editing this index, clear the editing state
                 if state.editing_index == Some(index) {
@@ -129,7 +157,45 @@ pub fn update(state: &mut JobTracker, message: Message) -> Task<Message> {
                         state.editing_index = Some(editing_index - 1);
                     }
                 }
+
+                // Save after deleting
+                state.save();
             }
+            Task::none()
+        },
+        Message::SaveData => {
+            state.save();
+            Task::none()
+        },
+        Message::LoadData => {
+            match storage::load_jobs() {
+                Ok(jobs) => {
+                    state.jobs = jobs;
+                    state.error_message = None;
+                    state.has_unsaved_changes = false;  // Reset after loading
+                },
+                Err(err) => {
+                    state.error_message = Some(format!("Error loading data: {}", err));
+                }
+            }
+            Task::none()
+        },
+        Message::ErrorDismissed => {
+            state.error_message = None;
+            Task::none()
+        },
+        // Filter-related message handlers (don't affect saved state)
+        Message::SearchQueryChanged(query) => {
+            state.search_query = query;
+            Task::none()
+        },
+        Message::FilterStatusChanged(status) => {
+            state.filter_status = Some(status);
+            Task::none()
+        },
+        Message::ClearFilters => {
+            state.search_query = String::new();
+            state.filter_status = None;
             Task::none()
         },
     }

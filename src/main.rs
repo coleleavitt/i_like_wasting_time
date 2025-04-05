@@ -4,9 +4,9 @@ mod state;
 mod theme;
 mod ui;
 mod update;
+mod storage;
 
 use iced::{application, Size, Theme, Task};
-use data::JobApplication;
 use state::JobTracker;
 use ui::view;
 use update::update;
@@ -19,7 +19,7 @@ fn main() -> iced::Result {
         .antialiasing(true)
         .run_with(|| {
             (
-                JobTracker::new(JobApplication::load_sample_data()),
+                JobTracker::new(), // Fixed - no arguments needed
                 Task::none(),
             )
         })

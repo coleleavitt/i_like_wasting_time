@@ -58,6 +58,10 @@ pub fn kraken_card_border() -> Color {
     Color::from_rgb(0.169, 0.189, 0.224) // Slightly brighter card borders
 }
 
+pub fn kraken_warning_subtle() -> Color {
+    Color::from_rgba(0.945, 0.769, 0.059, 0.3)
+}
+
 // --- Status Colors ---
 pub fn status_color(status: JobStatus) -> Color {
     match status {
@@ -68,5 +72,27 @@ pub fn status_color(status: JobStatus) -> Color {
         JobStatus::Offer => Color::from_rgb(0.608, 0.349, 0.714),     // Purple
         JobStatus::Accepted => Color::from_rgb(0.129, 0.737, 0.514),  // Kraken Green
         JobStatus::Withdrawn => Color::from_rgb(0.5, 0.5, 0.5),       // Gray
+        JobStatus::All => Color::from_rgb(0.4, 0.4, 0.4),             // Gray for "All" filter
+    }
+}
+
+// --- Alpha Adjustment Utility Functions ---
+/// Set the alpha component of a color to a specific value
+pub fn with_alpha(color: Color, alpha: f32) -> Color {
+    Color {
+        r: color.r,
+        g: color.g,
+        b: color.b,
+        a: alpha
+    }
+}
+
+/// Create a new color with the same RGB values but with alpha multiplied by the given factor
+pub fn fade_color(color: Color, factor: f32) -> Color {
+    Color {
+        r: color.r,
+        g: color.g,
+        b: color.b,
+        a: color.a * factor
     }
 }

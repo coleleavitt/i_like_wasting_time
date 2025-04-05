@@ -344,3 +344,16 @@ pub fn position_text_style(status: JobStatus) -> impl Fn(&Theme) -> text::Style 
         }
     }
 }
+
+pub fn filter_section_style(_theme: &Theme) -> container::Style {
+    container::Style {
+        background: Some(Background::Color(Color::from_rgb(0.06, 0.07, 0.08))), // Slightly darker than header
+        text_color: Some(kraken_text()),
+        border: Border {
+            color: Color::from_rgb(0.12, 0.14, 0.16), // Subtle top/bottom border
+            width: 1.0,
+            radius: 0.0.into(),
+        },
+        ..container::Style::default()
+    }
+}

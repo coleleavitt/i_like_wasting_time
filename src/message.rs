@@ -1,5 +1,3 @@
-use crate::data::JobStatus;
-
 #[derive(Debug, Clone)]
 pub enum Message {
     OpenUrl(String),
@@ -9,11 +7,20 @@ pub enum Message {
     DateChanged(String),
     NotesChanged(String),
     UrlChanged(String),
-    StatusSelected(JobStatus),
+    StatusSelected(crate::data::JobStatus),
     AddJob,
     ResetForm,
     StartEditing(usize),
     SaveEdit,
     CancelEdit,
     DeleteJob(usize),
+    SaveData,
+    LoadData,
+    // ExportToCSV,  // Optional additional feature
+    // ImportFromCSV,  // Optional additional feature
+    ErrorDismissed,
+    // New filter-related messages
+    SearchQueryChanged(String),
+    FilterStatusChanged(crate::data::JobStatus),
+    ClearFilters,
 }
