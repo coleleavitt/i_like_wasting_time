@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
 
 jobs:
   build-linux:
@@ -13,55 +20,56 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - run: cargo build --release
+          profile: minimal
+          override: true
+      - uses: Swatinem/rust-cache@v2
+      - name: Build Linux version
+        run: cargo build --release
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: linux-binary
           path: target/release/job_tracker
+          retention-days: 7
 
   build-windows:
     runs-on: windows-latest
     steps:
-      - name: Check if running in act
-        id: check-act
-        run: |
-          if [ -n "$ACT" ]; then
-            echo "Running in act - would build Windows version on real CI"
-            exit 0
-          fi
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          profile: minimal
           target: x86_64-pc-windows-msvc
-      - run: cargo build --release
+          override: true
+      - uses: Swatinem/rust-cache@v2
+      - name: Build Windows version
+        run: cargo build --release
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: windows-binary
           path: target/release/job_tracker.exe
+          retention-days: 7
 
   build-macos:
     runs-on: macos-latest
     steps:
-      - name: Check if running in act
-        id: check-act
-        run: |
-          if [ -n "$ACT" ]; then
-            echo "Running in act - would build macOS version on real CI"
-            exit 0
-          fi
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          profile: minimal
           target: x86_64-apple-darwin
-      - run: cargo build --release
+          override: true
+      - uses: Swatinem/rust-cache@v2
+      - name: Build macOS version
+        run: cargo build --release
       - name: Create macOS App Bundle
         run: |
           mkdir -p Job_Tracker.app/Contents/{MacOS,Resources}
           cp target/release/job_tracker Job_Tracker.app/Contents/MacOS/
+          chmod +x Job_Tracker.app/Contents/MacOS/job_tracker
           echo '<?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -85,3 +93,24 @@ jobs:
           path: |
             Job_Tracker.app
             Job_Tracker.dmg
+          retention-days: 7
+
+  create-release:
+    needs: [build-linux, build-windows, build-macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            linux-binary/job_tracker
+            windows-binary/job_tracker.exe
+            macos-app/*.dmg
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
