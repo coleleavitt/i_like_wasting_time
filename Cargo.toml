@@ -1,0 +1,11 @@
+[package]
+name = "i_like_wasting_time"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+iced = { version = "0.13.1", features = ["tokio", "multi-window", "debug"] }
+svg = "0.18.0"
+webbrowser = "1.0.4"
+#chrono = "0.4"
+
