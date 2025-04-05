@@ -129,6 +129,9 @@ jobs:
           Comment=Track your job applications
           EOF
           
+          # IMPORTANT: Copy desktop file to the AppDir root
+          cp appdir/usr/share/applications/job-tracker.desktop appdir/job-tracker.desktop
+          
           # Create a simple icon
           cat > appdir/usr/share/icons/hicolor/256x256/apps/job-tracker.svg << EOF
           <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
