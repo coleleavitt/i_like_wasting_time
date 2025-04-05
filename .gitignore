@@ -1,3 +1,5 @@
 /target
 .idea/
 Cargo.lock
+job_applications.json
+job_applications.json.backup
