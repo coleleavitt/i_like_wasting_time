@@ -26,7 +26,7 @@ jobs:
       - name: Build Linux version
         run: cargo build --release
       - name: Upload Linux Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: linux-binary
           path: target/release/job_tracker
@@ -46,7 +46,7 @@ jobs:
       - name: Build Windows version
         run: cargo build --release
       - name: Upload Windows Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-binary
           path: target/release/job_tracker.exe
@@ -87,7 +87,7 @@ jobs:
       - name: Create DMG
         run: hdiutil create -volname "Job Tracker" -srcfolder Job_Tracker.app -ov -format UDZO Job_Tracker.dmg
       - name: Upload macOS Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-app
           path: |
@@ -101,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
