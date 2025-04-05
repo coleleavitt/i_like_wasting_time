@@ -16,6 +16,16 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     steps:
+      - name: Check for Act environment
+        id: check-act
+        run: |
+          if [ -n "$ACT" ]; then
+            echo "Running in Act environment"
+            echo "is_act=true" >> $GITHUB_OUTPUT
+          else
+            echo "Running in GitHub Actions"
+            echo "is_act=false" >> $GITHUB_OUTPUT
+          fi
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
@@ -35,68 +45,123 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
+      - name: Check for Act environment
+        id: check-act
+        shell: bash
+        run: |
+          if [ -n "$ACT" ]; then
+            echo "Running in Act - skipping Windows build"
+            echo "is_act=true" >> $GITHUB_OUTPUT
+            exit 0
+          else
+            echo "Running in GitHub Actions"
+            echo "is_act=false" >> $GITHUB_OUTPUT
+          fi
       - uses: actions/checkout@v3
+        if: steps.check-act.outputs.is_act != 'true'
       - uses: actions-rs/toolchain@v1
+        if: steps.check-act.outputs.is_act != 'true'
         with:
           toolchain: stable
           profile: minimal
           target: x86_64-pc-windows-msvc
           override: true
       - uses: Swatinem/rust-cache@v2
+        if: steps.check-act.outputs.is_act != 'true'
       - name: Build Windows version
+        if: steps.check-act.outputs.is_act != 'true'
         run: cargo build --release
       - name: Upload Windows Artifacts
+        if: steps.check-act.outputs.is_act != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: windows-binary
           path: target/release/job_tracker.exe
           retention-days: 7
 
-  build-macos:
-    runs-on: macos-latest
+  build-appimage:
+    runs-on: ubuntu-latest
+    needs: [build-linux]
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          target: x86_64-apple-darwin
-          override: true
-      - uses: Swatinem/rust-cache@v2
-      - name: Build macOS version
-        run: cargo build --release
-      - name: Create macOS App Bundle
+      - name: Check for Act environment
+        id: check-act
         run: |
-          mkdir -p Job_Tracker.app/Contents/{MacOS,Resources}
-          cp target/release/job_tracker Job_Tracker.app/Contents/MacOS/
-          chmod +x Job_Tracker.app/Contents/MacOS/job_tracker
-          echo '<?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>CFBundleExecutable</key>
-            <string>job_tracker</string>
-            <key>CFBundleIdentifier</key>
-            <string>com.coleleavitt.jobtracker</string>
-            <key>CFBundleName</key>
-            <string>Job Tracker</string>
-            <key>CFBundleVersion</key>
-            <string>1.0.0</string>
-          </dict>
-          </plist>' > Job_Tracker.app/Contents/Info.plist
-      - name: Create DMG
-        run: hdiutil create -volname "Job Tracker" -srcfolder Job_Tracker.app -ov -format UDZO Job_Tracker.dmg
-      - name: Upload macOS Artifacts
+          if [ -n "$ACT" ]; then
+            echo "Running in Act - skipping AppImage build"
+            echo "is_act=true" >> $GITHUB_OUTPUT
+            exit 0
+          else
+            echo "Running in GitHub Actions"
+            echo "is_act=false" >> $GITHUB_OUTPUT
+          fi
+      - uses: actions/checkout@v3
+        if: steps.check-act.outputs.is_act != 'true'
+      - name: Download Linux Artifact
+        if: steps.check-act.outputs.is_act != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binary
+          path: appdir/usr/bin
+      - name: Install AppImage tools
+        if: steps.check-act.outputs.is_act != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2
+          wget -O appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool
+      - name: Prepare AppDir structure
+        if: steps.check-act.outputs.is_act != 'true'
+        run: |
+          mkdir -p appdir/usr/share/applications
+          mkdir -p appdir/usr/share/icons/hicolor/256x256/apps
+          
+          # Make the binary executable
+          chmod +x appdir/usr/bin/job_tracker
+          
+          # Create desktop file
+          cat > appdir/usr/share/applications/job-tracker.desktop << EOF
+          [Desktop Entry]
+          Type=Application
+          Name=Job Tracker
+          Exec=job_tracker
+          Icon=job-tracker
+          Categories=Office;
+          Comment=Track your job applications
+          EOF
+          
+          # Create a simple icon
+          cat > appdir/usr/share/icons/hicolor/256x256/apps/job-tracker.svg << EOF
+          <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+            <rect width="256" height="256" fill="#292D3E" rx="20" ry="20"/>
+            <text x="128" y="128" font-family="Arial" font-size="40" text-anchor="middle" fill="#FFFFFF">JT</text>
+          </svg>
+          EOF
+          
+          # Create an AppRun file (wrapper script)
+          cat > appdir/AppRun << EOF
+          #!/bin/bash
+          SELF=\$(readlink -f "\$0")
+          HERE=\${SELF%/*}
+          export PATH="\${HERE}/usr/bin:\${PATH}"
+          export LD_LIBRARY_PATH="\${HERE}/usr/lib:\${LD_LIBRARY_PATH}"
+          exec "\${HERE}/usr/bin/job_tracker" "\$@"
+          EOF
+          
+          chmod +x appdir/AppRun
+      - name: Build AppImage
+        if: steps.check-act.outputs.is_act != 'true'
+        run: |
+          ./appimagetool appdir/ Job_Tracker-x86_64.AppImage
+      - name: Upload AppImage Artifact
+        if: steps.check-act.outputs.is_act != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: macos-app
-          path: |
-            Job_Tracker.app
-            Job_Tracker.dmg
+          name: appimage
+          path: Job_Tracker-x86_64.AppImage
           retention-days: 7
 
   create-release:
-    needs: [build-linux, build-windows, build-macos]
+    needs: [build-linux, build-windows, build-appimage]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -112,11 +177,11 @@ jobs:
         with:
           name: windows-binary
           path: windows-binary
-      - name: Download macOS Artifact
+      - name: Download AppImage Artifact
         uses: actions/download-artifact@v4
         with:
-          name: macos-app
-          path: macos-app
+          name: appimage
+          path: appimage
       - name: List Files
         run: |
           echo "Downloaded files:"
@@ -127,7 +192,7 @@ jobs:
           files: |
             linux-binary/job_tracker
             windows-binary/job_tracker.exe
-            macos-app/*.dmg
+            appimage/Job_Tracker-x86_64.AppImage
           draft: false
           prerelease: false
           generate_release_notes: true
