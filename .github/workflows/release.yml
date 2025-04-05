@@ -32,6 +32,9 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Explicitly define the cache key prefix to avoid cache key issues
+          prefix-key: "v1-rust"
       - name: Build Linux version
         run: cargo build --release
       - name: Upload Linux Artifacts
@@ -66,6 +69,9 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         if: steps.check-act.outputs.is_act != 'true'
+        with:
+          # Explicitly define the cache key prefix to avoid cache key issues
+          prefix-key: "v1-rust"
       - name: Build Windows version
         if: steps.check-act.outputs.is_act != 'true'
         run: cargo build --release
@@ -78,7 +84,8 @@ jobs:
           retention-days: 7
 
   build-appimage:
-    runs-on: ubuntu-20.04  # Using Ubuntu 20.04 for better AppImage compatibility
+    # Updated from ubuntu-20.04 to ubuntu-22.04 due to upcoming deprecation
+    runs-on: ubuntu-22.04
     needs: [build-linux]
     steps:
       - name: Check for Act environment
