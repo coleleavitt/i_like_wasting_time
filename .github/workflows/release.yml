@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: cargo build --release
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-binary
+          path: target/release/job_tracker
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check if running in act
+        id: check-act
+        run: |
+          if [ -n "$ACT" ]; then
+            echo "Running in act - would build Windows version on real CI"
+            exit 0
+          fi
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+      - run: cargo build --release
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-binary
+          path: target/release/job_tracker.exe
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Check if running in act
+        id: check-act
+        run: |
+          if [ -n "$ACT" ]; then
+            echo "Running in act - would build macOS version on real CI"
+            exit 0
+          fi
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-apple-darwin
+      - run: cargo build --release
+      - name: Create macOS App Bundle
+        run: |
+          mkdir -p Job_Tracker.app/Contents/{MacOS,Resources}
+          cp target/release/job_tracker Job_Tracker.app/Contents/MacOS/
+          echo '<?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>job_tracker</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.coleleavitt.jobtracker</string>
+            <key>CFBundleName</key>
+            <string>Job Tracker</string>
+            <key>CFBundleVersion</key>
+            <string>1.0.0</string>
+          </dict>
+          </plist>' > Job_Tracker.app/Contents/Info.plist
+      - name: Create DMG
+        run: hdiutil create -volname "Job Tracker" -srcfolder Job_Tracker.app -ov -format UDZO Job_Tracker.dmg
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-app
+          path: |
+            Job_Tracker.app
+            Job_Tracker.dmg

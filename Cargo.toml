@@ -1,15 +1,71 @@
 [package]
-name = "i_like_wasting_time"
+name = "job_tracker"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+authors = ["Cole Leavitt"]
+description = "A modern job application tracking tool with advanced visual interface"
+#repository = "https://github.com/coleleavitt/job_tracker"
+license = "MIT"
+#readme = "README.md"
+keywords = ["job", "tracker", "career", "application", "gui"]
+categories = ["gui", "visualization"]
+default-run = "job_tracker"
 
+# Optimization settings for release builds
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# Dependencies used by the application
 [dependencies]
-chrono = "0.4.40"
-iced = { version = "0.13.1", features = ["tokio", "multi-window", "debug"] }
+# Core dependencies
+iced = { version = "0.13.1", features = ["tokio", "multi-window", "debug", "image", "svg", "canvas"] }
+tokio = { version = "1.36.0", features = ["full"] }
+chrono = { version = "0.4.40", features = ["serde"] }
+
+# Data handling
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-svg = "0.18.0"
-thiserror = "2.0.12"
-webbrowser = "1.0.4"
-#chrono = "0.4"
+#csv = "1.3.0"
+#uuid = { version = "1.7.0", features = ["v4", "serde"] }
 
+# Error handling
+thiserror = "2.0.12"
+# UI/UX features
+webbrowser = "1.0.4"
+
+
+## Cross-platform features
+#dirs = "5.0.1" # For finding system directories
+#open = "5.0.1" # For opening files/URLs cross-platform
+#clipboard = "0.5.0" # Clipboard support
+
+# Windows-specific dependencies
+[target.'cfg(windows)'.dependencies]
+winres = "0.1.12" # Windows resource files
+winapi = { version = "0.3.9", features = ["winuser", "shellapi"] }
+
+# Build script for Windows resources
+[build-dependencies]
+winres = "0.1.12"
+
+## Development-only dependencies
+#[dev-dependencies]
+#pretty_assertions = "1.4.0"
+#test-case = "3.3.1"
+#mockall = "0.12.1"
+
+# Binary executable definition
+[[bin]]
+name = "job_tracker"
+path = "src/main.rs"
+
+# Windows resources metadata
+[package.metadata.winres]
+OriginalFilename = "job_tracker.exe"
+LegalCopyright = "Copyright © 2025 Cole Leavitt"
+ProductName = "Job Tracker"
+FileDescription = "Professional job application tracker"
