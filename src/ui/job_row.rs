@@ -1,9 +1,13 @@
-use iced::{widget::{button, container, row, text}, alignment, Alignment, Element, Length, Padding, Theme, Color};
+use iced::{
+    widget::{button, container, row, text},
+    alignment, Alignment, Border, Element, Length, Padding, Shadow, Theme, Color
+};
 
 use crate::data::{JobApplication, JobStatus};
 use crate::message::Message;
 use crate::theme::*;
 use crate::ui::common::*;
+use crate::state::{SortColumn, SortOrder};
 
 pub fn job_row(index: usize, job: &JobApplication) -> Element<'_, Message, Theme> {
     let status = job.status;
@@ -99,15 +103,57 @@ pub fn job_row(index: usize, job: &JobApplication) -> Element<'_, Message, Theme
         .into()
 }
 
-pub fn table_header() -> container::Container<'static, Message, Theme> {
+pub fn table_header(sort_column: SortColumn, sort_order: SortOrder) -> container::Container<'static, Message, Theme> {
+    // Company header with sorting triangle
+    let company_text = row![
+        text("COMPANY").size(13),
+        text(match (sort_column, sort_order) {
+            (SortColumn::Company, SortOrder::Ascending) => "▲",
+            (SortColumn::Company, SortOrder::Descending) => "▼",
+            _ => "⋮" // Neutral state
+        }).size(9)
+    ]
+        .spacing(5);
+
+    // Use button instead of container for interactivity
+    let company_header = button(company_text)
+        .width(Length::FillPortion(2))
+        .style(|_theme, _status| button::Style {
+            text_color: kraken_secondary_text(),
+            background: None,
+            border: Border::default(),
+            shadow: Shadow::default(),
+        })
+        .on_press(Message::SortBy(SortColumn::Company));
+
+    // Applied date header with sorting triangle
+    let applied_text = row![
+        text("APPLIED").size(13),
+        text(match (sort_column, sort_order) {
+            (SortColumn::DateApplied, SortOrder::Ascending) => "▲",
+            (SortColumn::DateApplied, SortOrder::Descending) => "▼",
+            _ => "⋮" // Neutral state
+        }).size(9)
+    ]
+        .spacing(5);
+
+    // Use button instead of container for interactivity
+    let applied_header = button(applied_text)
+        .width(Length::FillPortion(2))
+        .style(|_theme, _status| button::Style {
+            text_color: kraken_secondary_text(),
+            background: None,
+            border: Border::default(),
+            shadow: Shadow::default(),
+        })
+        .on_press(Message::SortBy(SortColumn::DateApplied));
+
     container(
         row![
-            text("COMPANY").size(13).width(Length::FillPortion(2))
-                .style(|_| text::Style { color: Some(kraken_secondary_text()) }),
+            company_header,
             text("POSITION").size(13).width(Length::FillPortion(3))
                 .style(|_| text::Style { color: Some(kraken_secondary_text()) }),
-            text("APPLIED").size(13).width(Length::FillPortion(2))
-                .style(|_| text::Style { color: Some(kraken_secondary_text()) }),
+            applied_header,
             text("STATUS").size(13).width(Length::FillPortion(1))
                 .style(|_| text::Style { color: Some(kraken_secondary_text()) }),
             text("NOTES").size(13).width(Length::FillPortion(4))

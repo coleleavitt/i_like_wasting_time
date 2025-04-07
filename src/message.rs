@@ -23,4 +23,5 @@ pub enum Message {
     SearchQueryChanged(String),
     FilterStatusChanged(crate::data::JobStatus),
     ClearFilters,
+    SortBy(crate::state::SortColumn),
 }

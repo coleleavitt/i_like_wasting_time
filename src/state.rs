@@ -53,6 +53,32 @@ impl FormState {
     }
 }
 
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum SortOrder {
+    Ascending,
+    Descending,
+    None
+}
+
+impl Default for SortOrder {
+    fn default() -> Self {
+        SortOrder::None
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum SortColumn {
+    Company,
+    DateApplied,
+    None
+}
+
+impl Default for SortColumn {
+    fn default() -> Self {
+        SortColumn::None
+    }
+}
+
 #[derive(Default)]
 pub struct JobTracker {
     pub jobs: Vec<JobApplication>,
@@ -64,6 +90,8 @@ pub struct JobTracker {
     pub search_query: String,
     pub filter_status: Option<JobStatus>,
     pub has_unsaved_changes: bool,  // New field to track actual data changes
+    pub sort_order: SortOrder,
+    pub sort_column: SortColumn,
 }
 
 impl JobTracker {
@@ -99,16 +127,15 @@ impl JobTracker {
     }
 
     // Filter jobs based on current search query and status filter
-    pub fn filtered_jobs(&self) -> Vec<&JobApplication> {
-        self.jobs.iter()
-            .filter(|job| {
-                // Status filter
+    pub fn filtered_jobs(&self) -> Vec<(usize, &JobApplication)> {
+        self.jobs.iter().enumerate()
+            .filter(|(_, job)| {
+                // Status filter and search logic remains the same
                 let status_match = match self.filter_status {
                     None | Some(JobStatus::All) => true,
                     Some(status) => job.status == status,
                 };
 
-                // Text search
                 let search_match = self.search_query.is_empty() ||
                     job.company.to_lowercase().contains(&self.search_query.to_lowercase()) ||
                     job.position.to_lowercase().contains(&self.search_query.to_lowercase()) ||
@@ -117,5 +144,31 @@ impl JobTracker {
                 status_match && search_match
             })
             .collect()
+    }
+
+    // Get filtered and sorted jobs
+    pub fn sorted_jobs(&self) -> Vec<(usize, &JobApplication)> {
+        let mut jobs = self.filtered_jobs();
+
+        // Apply sorting if active
+        if self.sort_order != SortOrder::None {
+            match self.sort_column {
+                SortColumn::Company => {
+                    jobs.sort_by(|(_, a), (_, b)| {
+                        let cmp = a.company.to_lowercase().cmp(&b.company.to_lowercase());
+                        if self.sort_order == SortOrder::Ascending { cmp } else { cmp.reverse() }
+                    });
+                },
+                SortColumn::DateApplied => {
+                    jobs.sort_by(|(_, a), (_, b)| {
+                        let cmp = a.date_applied.cmp(&b.date_applied);
+                        if self.sort_order == SortOrder::Ascending { cmp } else { cmp.reverse() }
+                    });
+                },
+                SortColumn::None => {},
+            }
+        }
+
+        jobs
     }
 }
