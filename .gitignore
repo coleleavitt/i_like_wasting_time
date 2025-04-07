@@ -1,5 +1,41 @@
+# Rust build directory
 /target
+/target/
+**/target/
+
+# Editor directories and files
 .idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+desktop.ini
+
+# Cargo lock file (typically kept for binaries but ignored for libraries)
 Cargo.lock
+
+# Application-specific data files
 job_applications.json
 job_applications.json.backup
+
+# Rust-specific
+**/*.rs.bk
+*.pdb
+
+# Debug files
+*.log
+
+# Generated documentation
+/doc/
+
+# Environment variables
+.env
+.env.local
+
+# Backup files
+*~
+*.bak
+*.backup
+
+# Temporary files
+*.tmp
