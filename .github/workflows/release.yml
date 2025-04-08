@@ -1,9 +1,19 @@
 name: Release
 
+# Add concurrency control to prevent multiple workflows running in parallel
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Define environment variables for organization
+env:
+  RELEASE_NAME: Job Tracker
+  RELEASE_DESCRIPTION: Track your job applications during your job search
+
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*'     # Will trigger on tags like v1.0.0, v2.3.1, etc.
     branches:
       - main
       - master
@@ -47,6 +57,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
+      # Windows build steps unchanged
       - name: Check for Act environment
         id: check-act
         shell: bash
@@ -84,7 +95,7 @@ jobs:
           retention-days: 7
 
   build-appimage:
-    # Updated from ubuntu-20.04 to ubuntu-22.04 due to upcoming deprecation
+    # AppImage build steps unchanged
     runs-on: ubuntu-22.04
     needs: [build-linux]
     steps:
@@ -205,7 +216,54 @@ jobs:
           path: Job_Tracker-x86_64.AppImage
           retention-days: 7
 
+  # NEW JOB: Auto-tag when PRs are merged to main
+  auto-tag:
+    needs: [build-linux, build-windows, build-appimage]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for tags
+
+      - name: Create new tag
+        id: create_tag
+        run: |
+          # Get the latest tag or start at v0.0.0 if none exists
+          git fetch --tags
+          LATEST_TAG=$(git tag -l "v*" --sort=-v:refname | head -n 1 || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+          
+          # Extract version parts
+          if [[ $LATEST_TAG =~ v([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+            MAJOR="${BASH_REMATCH[1]}"
+            MINOR="${BASH_REMATCH[2]}"
+            PATCH="${BASH_REMATCH[3]}"
+          
+            # Increment patch version
+            NEW_PATCH=$((PATCH + 1))
+            NEW_TAG="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+          else
+            # Default if no match
+            NEW_TAG="v0.0.1"
+          fi
+          
+          echo "Creating new tag: $NEW_TAG"
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_OUTPUT
+          
+          # Configure Git
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          
+          # Create and push the tag
+          git tag $NEW_TAG
+          git push origin $NEW_TAG
+
   create-release:
+    # No changes to condition - still runs only when a tag is pushed
     needs: [build-linux, build-windows, build-appimage]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
@@ -238,6 +296,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
+          name: ${{ env.RELEASE_NAME }} ${{ github.ref_name }}
+          body: ${{ env.RELEASE_DESCRIPTION }}
           files: |
             linux-binary/job_tracker
             windows-binary/job_tracker.exe
