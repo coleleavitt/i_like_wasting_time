@@ -216,13 +216,16 @@ jobs:
           path: Job_Tracker-x86_64.AppImage
           retention-days: 7
 
-  # NEW JOB: Auto-tag when PRs are merged to main
+  # Auto-tag when PRs are merged to main - with outputs properly defined
   auto-tag:
     needs: [build-linux, build-windows, build-appimage]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # Add outputs section to expose the NEW_TAG to other jobs
+    outputs:
+      NEW_TAG: ${{ steps.create_tag.outputs.NEW_TAG }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -262,18 +265,29 @@ jobs:
           git tag $NEW_TAG
           git push origin $NEW_TAG
 
+      # Add debugging output
+      - name: Debug
+        run: |
+          echo "Created tag: ${{ steps.create_tag.outputs.NEW_TAG }}"
+
   create-release:
-    # Add auto-tag to dependencies
+    # Needs to depend on auto-tag job
     needs: [build-linux, build-windows, build-appimage, auto-tag]
-    # Run if either a tag was pushed directly or auto-tag created one
+    # Simplified condition
     if: |
       always() && 
       (startsWith(github.ref, 'refs/tags/v') || 
-      (needs.auto-tag.result == 'success' && needs.auto-tag.outputs.NEW_TAG != ''))
+      needs.auto-tag.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      # Add debugging step
+      - name: Debug
+        run: |
+          echo "Tag from auto-tag job: ${{ needs.auto-tag.outputs.NEW_TAG }}"
+          echo "Current ref: ${{ github.ref }}"
+
       - name: Download Linux Artifact
         uses: actions/download-artifact@v4
         with:
@@ -318,4 +332,3 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
