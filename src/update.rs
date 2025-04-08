@@ -2,7 +2,7 @@ use chrono::Local;
 use iced::Task;
 
 use crate::message::Message;
-use crate::state::{FormState, JobTracker};
+use crate::state::{FormState, JobTracker, SortOrder}; // Removed unused SortColumn import
 use crate::storage;
 
 pub fn update(state: &mut JobTracker, message: Message) -> Task<Message> {
@@ -196,6 +196,21 @@ pub fn update(state: &mut JobTracker, message: Message) -> Task<Message> {
         Message::ClearFilters => {
             state.search_query = String::new();
             state.filter_status = None;
+            Task::none()
+        },
+        Message::SortBy(column) => {
+            // If already sorting by this column, toggle order
+            if state.sort_column == column {
+                state.sort_order = match state.sort_order {
+                    SortOrder::Ascending => SortOrder::Descending,
+                    SortOrder::Descending => SortOrder::None,
+                    SortOrder::None => SortOrder::Ascending,
+                };
+            } else {
+                // New column, start with ascending
+                state.sort_column = column;
+                state.sort_order = SortOrder::Ascending;
+            }
             Task::none()
         },
     }
