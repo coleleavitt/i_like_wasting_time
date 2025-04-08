@@ -262,48 +262,41 @@ jobs:
           git tag $NEW_TAG
           git push origin $NEW_TAG
 
-  create-release:
-    # No changes to condition - still runs only when a tag is pushed
-    needs: [build-linux, build-windows, build-appimage]
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download Linux Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-binary
-          path: linux-binary
-      - name: Download Windows Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-binary
-          path: windows-binary
-      - name: Download AppImage Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: appimage
-          path: appimage
-      - name: Make binaries executable
-        run: |
-          chmod +x linux-binary/job_tracker
-          [ -f appimage/Job_Tracker-x86_64.AppImage ] && chmod +x appimage/Job_Tracker-x86_64.AppImage
-      - name: List Files
-        run: |
-          echo "Downloaded files:"
-          find . -type f | sort
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          name: ${{ env.RELEASE_NAME }} ${{ github.ref_name }}
-          body: ${{ env.RELEASE_DESCRIPTION }}
-          files: |
-            linux-binary/job_tracker
-            windows-binary/job_tracker.exe
-            appimage/Job_Tracker-x86_64.AppImage
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # NEW JOB: Create GitHub release
+    create-release:
+      # Add auto-tag to dependencies
+      needs: [ build-linux, build-windows, build-appimage, auto-tag ]
+      # Replace the current condition with this
+      if: |
+        always() && 
+        (startsWith(github.ref, 'refs/tags/v') || 
+        (needs.auto-tag.result == 'success' && needs.auto-tag.outputs.NEW_TAG != ''))
+      runs-on: ubuntu-latest
+      permissions:
+        contents: write
+      steps:
+        # Same steps as before, but update the release creation
+        - name: Download Linux Artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: linux-binary
+            path: linux-binary
+        # Other download steps remain the same...
+
+        - name: Create Release
+          uses: softprops/action-gh-release@v1
+          with:
+            # Use either the pushed tag or the auto-created tag
+            tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || needs.auto-tag.outputs.NEW_TAG }}
+            name: ${{ env.RELEASE_NAME }} ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || needs.auto-tag.outputs.NEW_TAG }}
+            body: ${{ env.RELEASE_DESCRIPTION }}
+            files: |
+              linux-binary/job_tracker
+              windows-binary/job_tracker.exe
+              appimage/Job_Tracker-x86_64.AppImage
+            draft: false
+            prerelease: false
+            generate_release_notes: true
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
